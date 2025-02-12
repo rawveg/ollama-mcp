@@ -1,22 +1,27 @@
 {
   "name": "ollama-mcp",
-  "version": "1.0.0",
-  "description": "MCP Server for Ollama integration",
-  "type": "server",
-  "entryPoint": "dist/cli.js",
+  "version": "1.0.2",
+  "type": "tool",
   "tools": [
     {
       "name": "list_ollama_models",
       "description": "List all available Ollama models",
-      "path": "/models",
-      "method": "GET",
-      "parameters": {}
+      "route": {
+        "path": "/models",
+        "method": "GET"
+      },
+      "parameters": {
+        "type": "object",
+        "properties": {}
+      }
     },
     {
       "name": "pull_ollama_model",
       "description": "Pull a new Ollama model",
-      "path": "/models/pull",
-      "method": "POST",
+      "route": {
+        "path": "/models/pull",
+        "method": "POST"
+      },
       "parameters": {
         "type": "object",
         "required": ["name"],
@@ -31,8 +36,10 @@
     {
       "name": "chat_with_ollama",
       "description": "Chat with an Ollama model",
-      "path": "/chat",
-      "method": "POST",
+      "route": {
+        "path": "/chat",
+        "method": "POST"
+      },
       "parameters": {
         "type": "object",
         "required": ["model", "messages"],
@@ -66,8 +73,10 @@
     {
       "name": "get_ollama_model_info",
       "description": "Get information about a specific Ollama model",
-      "path": "/models/:name",
-      "method": "GET",
+      "route": {
+        "path": "/models/:name",
+        "method": "GET"
+      },
       "parameters": {
         "type": "object",
         "required": ["name"],
