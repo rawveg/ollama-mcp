@@ -4,37 +4,80 @@
   "description": "MCP Server for Ollama integration",
   "type": "server",
   "entryPoint": "dist/cli.js",
-  "capabilities": [
+  "tools": [
     {
-      "id": "ollama",
-      "description": "Interact with local Ollama models",
-      "type": "llm_proxy",
-      "actions": [
-        {
-          "name": "list_models",
-          "description": "List available Ollama models",
-          "path": "/models",
-          "method": "GET"
-        },
-        {
-          "name": "pull_model",
-          "description": "Pull a new Ollama model",
-          "path": "/models/pull",
-          "method": "POST"
-        },
-        {
-          "name": "chat",
-          "description": "Chat with an Ollama model",
-          "path": "/chat",
-          "method": "POST"
-        },
-        {
-          "name": "model_info",
-          "description": "Get information about a specific model",
-          "path": "/models/:name",
-          "method": "GET"
+      "name": "list_ollama_models",
+      "description": "List all available Ollama models",
+      "path": "/models",
+      "method": "GET",
+      "parameters": {}
+    },
+    {
+      "name": "pull_ollama_model",
+      "description": "Pull a new Ollama model",
+      "path": "/models/pull",
+      "method": "POST",
+      "parameters": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the model to pull"
+          }
         }
-      ]
+      }
+    },
+    {
+      "name": "chat_with_ollama",
+      "description": "Chat with an Ollama model",
+      "path": "/chat",
+      "method": "POST",
+      "parameters": {
+        "type": "object",
+        "required": ["model", "messages"],
+        "properties": {
+          "model": {
+            "type": "string",
+            "description": "Name of the model to chat with"
+          },
+          "messages": {
+            "type": "array",
+            "description": "Array of chat messages",
+            "items": {
+              "type": "object",
+              "required": ["role", "content"],
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": ["system", "user", "assistant"],
+                  "description": "Role of the message sender"
+                },
+                "content": {
+                  "type": "string",
+                  "description": "Content of the message"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "get_ollama_model_info",
+      "description": "Get information about a specific Ollama model",
+      "path": "/models/:name",
+      "method": "GET",
+      "parameters": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the model to get information about"
+          }
+        }
+      }
     }
   ],
   "env": {
