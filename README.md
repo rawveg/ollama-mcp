@@ -42,7 +42,7 @@ To install the Ollama MCP Server in other MCP-compatible applications (like Clin
 ```json
 {
   "mcpServers": {
-    "ollama-mcp": {
+    "@rawveg/ollama-mcp": {
       "command": "npx",
       "args": [
         "-y",
