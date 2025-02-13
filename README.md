@@ -35,6 +35,28 @@ Install globally via npm:
 npm install -g @rawveg/ollama-mcp
 ```
 
+### Installing in Other MCP Applications
+
+To install the Ollama MCP Server in other MCP-compatible applications (like Cline or Claude Desktop), add the following configuration to your application's MCP settings file:
+
+```json
+{
+  "mcpServers": {
+    "mcp-installer": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@rawveg/ollama-mcp"
+      ]
+    }
+  }
+}
+```
+
+The settings file location varies by application:
+- Claude Desktop: `claude_desktop_config.json` in the Claude app data directory
+- Cline: `cline_mcp_settings.json` in the VS Code global storage
+
 ## Usage
 
 ### Starting the Server
