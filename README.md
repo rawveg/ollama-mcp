@@ -53,7 +53,14 @@ PORT=3457 ollama-mcp
 
 ### Environment Variables
 
-- `PORT`: Server port (default: 3456)
+- `PORT`: Server port (default: 3456). Can be used both when running directly and during Smithery installation:
+  ```bash
+  # When running directly
+  PORT=3457 ollama-mcp
+
+  # When installing via Smithery
+  PORT=3457 npx -y @smithery/cli install @rawveg/ollama-mcp --client claude
+  ```
 - `OLLAMA_API`: Ollama API endpoint (default: http://localhost:11434)
 
 ### API Endpoints
