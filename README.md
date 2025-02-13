@@ -1,4 +1,5 @@
 # Ollama MCP Server
+[![smithery badge](https://smithery.ai/badge/@rawveg/ollama-mcp)](https://smithery.ai/server/@rawveg/ollama-mcp)
 
 An MCP (Model Context Protocol) server for Ollama that enables seamless integration between Ollama's local LLM models and MCP-compatible applications like Claude Desktop.
 
@@ -19,6 +20,15 @@ An MCP (Model Context Protocol) server for Ollama that enables seamless integrat
 
 ## Installation
 
+### Installing via Smithery
+
+To install Ollama MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@rawveg/ollama-mcp):
+
+```bash
+npx -y @smithery/cli install @rawveg/ollama-mcp --client claude
+```
+
+### Manual Installation
 Install globally via npm:
 
 ```bash
