@@ -1,6 +1,4 @@
 # Ollama MCP Server
-[![smithery badge](https://smithery.ai/badge/@rawveg/ollama-mcp)](https://smithery.ai/server/@rawveg/ollama-mcp)
-
 An MCP (Model Context Protocol) server for Ollama that enables seamless integration between Ollama's local LLM models and MCP-compatible applications like Claude Desktop.
 
 ## Features
@@ -19,14 +17,6 @@ An MCP (Model Context Protocol) server for Ollama that enables seamless integrat
 - Ollama installed and running locally
 
 ## Installation
-
-### Installing via Smithery
-
-To install Ollama MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@rawveg/ollama-mcp):
-
-```bash
-npx -y @smithery/cli install @rawveg/ollama-mcp --client claude
-```
 
 ### Manual Installation
 Install globally via npm:
@@ -75,13 +65,10 @@ PORT=3457 ollama-mcp
 
 ### Environment Variables
 
-- `PORT`: Server port (default: 3456). Can be used both when running directly and during Smithery installation:
+- `PORT`: Server port (default: 3456). Can be used when running directly:
   ```bash
   # When running directly
   PORT=3457 ollama-mcp
-
-  # When installing via Smithery
-  PORT=3457 npx -y @smithery/cli install @rawveg/ollama-mcp --client claude
   ```
 - `OLLAMA_API`: Ollama API endpoint (default: http://localhost:11434)
 
@@ -127,3 +114,5 @@ MIT
 
 - [Ollama](https://ollama.ai)
 - [Model Context Protocol](https://github.com/anthropics/model-context-protocol)
+
+This project was previously MIT-licensed. As of 20th April 2025, it is now licensed under AGPL-3.0 to prevent unauthorised commercial exploitation. If your use of this project predates this change, please refer to the relevant Git tag or commit for the applicable licence.
