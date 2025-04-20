@@ -1,6 +1,6 @@
 {
   "name": "@rawveg/ollama-mcp",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "type": "module",
   "description": "MCP Server for Ollama integration",
   "main": "dist/index.js",
