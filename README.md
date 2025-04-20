@@ -114,7 +114,7 @@ As a result, and to protect the integrity of this project and its contributors, 
 
 ## License
 
-MIT
+AGPL v3.0
 
 ## Related
 
