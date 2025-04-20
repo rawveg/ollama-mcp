@@ -106,6 +106,12 @@ npm start
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
+However, this does **not** grant permission to incorporate this project into third-party services or commercial platforms without prior discussion and agreement. While I previously accepted contributions (such as a Dockerfile and related README updates) to support integration with services like **Smithery**, recent actions by a similar service — **Glama** — have required a reassessment of this policy.
+
+Glama has chosen to include open-source MCP projects in their commercial offering without notice or consent, and subsequently created issue requests asking maintainers to perform unpaid work to ensure compatibility with *their* platform. This behaviour — leveraging community labour for profit without dialogue or compensation — is not only inconsiderate, but **ethically problematic**.
+
+As a result, and to protect the integrity of this project and its contributors, the licence has been updated to the **GNU Affero General Public License v3.0 (AGPL-3.0)**. This change ensures that any use of the software — particularly in **commercial or service-based platforms** — must remain fully compliant with the AGPL's terms **and** obtain a separate commercial licence. Merely linking to the original source is not sufficient where the project is being **actively monetised**. If you wish to include this project in a commercial offering, please get in touch **first** to discuss licensing terms.
+
 ## License
 
 MIT
