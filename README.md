@@ -116,6 +116,10 @@ As a result, and to protect the integrity of this project and its contributors, 
 
 AGPL v3.0
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=rawveg/ollama-mcp&type=Date)](https://www.star-history.com/#rawveg/ollama-mcp&Date)
+
 ## Related
 
 - [Ollama](https://ollama.ai)
