@@ -27,7 +27,12 @@ export async function main() {
 }
 
 // Only run if this is the main module (not being imported for testing)
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Check both direct execution and npx execution
+const isMain = import.meta.url.startsWith('file://') &&
+               (import.meta.url === `file://${process.argv[1]}` ||
+                process.argv[1]?.includes('ollama-mcp'));
+
+if (isMain) {
   main().catch((error) => {
     console.error('Fatal error:', error);
     process.exit(1);

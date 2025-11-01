@@ -36,7 +36,7 @@ export function createServer(ollamaInstance?: Ollama): Server {
   const server = new Server(
     {
       name: 'ollama-mcp',
-      version: '2.0.0',
+      version: '2.0.2',
     },
     {
       capabilities: {
