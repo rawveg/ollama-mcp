@@ -47,15 +47,21 @@ export function createServer(ollamaInstance?: Ollama): Server {
 
   // Register tool list handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    const tools = await discoverTools();
+    try {
+      const tools = await discoverTools();
+      console.error(`[DEBUG] Discovered ${tools.length} tools`);
 
-    return {
-      tools: tools.map((tool) => ({
-        name: tool.name,
-        description: tool.description,
-        inputSchema: tool.inputSchema,
-      })),
-    };
+      return {
+        tools: tools.map((tool) => ({
+          name: tool.name,
+          description: tool.description,
+          inputSchema: tool.inputSchema,
+        })),
+      };
+    } catch (error) {
+      console.error('[ERROR] Failed to discover tools:', error);
+      throw error;
+    }
   });
 
   // Register tool call handler

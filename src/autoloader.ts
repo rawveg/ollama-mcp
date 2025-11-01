@@ -30,7 +30,9 @@ export interface ToolDefinition {
  */
 export async function discoverTools(): Promise<ToolDefinition[]> {
   const toolsDir = join(__dirname, 'tools');
+  console.error(`[DEBUG] Looking for tools in: ${toolsDir}`);
   const files = await readdir(toolsDir);
+  console.error(`[DEBUG] Found ${files.length} files in tools directory`);
 
   // Filter for .js files (production) or .ts files (development)
   // Exclude test files and declaration files
