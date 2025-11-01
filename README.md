@@ -29,6 +29,28 @@ An MCP (Model Context Protocol) server that exposes the complete Ollama SDK as M
 - 🌐 **Web Search & Fetch** - Real-time web search and content extraction via Ollama Cloud
 - 🔀 **Hybrid Mode** - Use local and cloud models seamlessly in one server
 
+## 💡 Level Up Your Ollama Experience with Claude Code and Desktop
+
+### The Complete Package: Tools + Knowledge
+
+This MCP server gives Claude the **tools** to interact with Ollama - but you'll get even more value by also installing the **Ollama Skill** from the [Skillsforge Marketplace](https://github.com/rawveg/skillsforge-marketplace):
+
+- 🚗 **This MCP = The Car** - All the tools and capabilities
+- 🎓 **Ollama Skill = Driving Lessons** - Expert knowledge on how to use them effectively
+
+The Ollama Skill teaches Claude:
+- Best practices for model selection and configuration
+- Optimal prompting strategies for different Ollama models
+- When to use chat vs generate, embeddings, and other tools
+- Performance optimization and troubleshooting
+- Advanced features like tool calling and function support
+
+**Install both for the complete experience:**
+1. ✅ This MCP server (tools)
+2. ✅ [Ollama Skill](https://github.com/rawveg/skillsforge-marketplace) (expertise)
+
+Result: Claude doesn't just have the car - it knows how to drive! 🏎️
+
 ## 📦 Installation
 
 ### Quick Start with Claude Desktop
@@ -326,6 +348,7 @@ See [LICENSE](LICENSE) for details.
 
 ## 🔗 Related Projects
 
+- [Skillsforge Marketplace](https://github.com/rawveg/skillsforge-marketplace) - Claude Code skills including the Ollama Skill
 - [Ollama](https://ollama.ai) - Get up and running with large language models locally
 - [Model Context Protocol](https://github.com/anthropics/model-context-protocol) - Open standard for AI assistant integration
 - [Claude Desktop](https://claude.ai/desktop) - Anthropic's desktop application
