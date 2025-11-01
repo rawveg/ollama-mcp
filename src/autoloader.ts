@@ -32,9 +32,13 @@ export async function discoverTools(): Promise<ToolDefinition[]> {
   const toolsDir = join(__dirname, 'tools');
   const files = await readdir(toolsDir);
 
-  // Filter for .ts and .js files
+  // Filter for .js files (production) or .ts files (development)
+  // Exclude test files and declaration files
   const toolFiles = files.filter(
-    (file) => (file.endsWith('.ts') || file.endsWith('.js')) && !file.endsWith('.test.ts')
+    (file) =>
+      (file.endsWith('.js') || file.endsWith('.ts')) &&
+      !file.includes('.test.') &&
+      !file.endsWith('.d.ts')
   );
 
   const tools: ToolDefinition[] = [];
