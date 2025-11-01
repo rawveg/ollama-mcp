@@ -1,6 +1,6 @@
 {
   "name": "ollama-mcp",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "MCP server for Ollama - exposes all Ollama SDK functionality through MCP tools",
   "type": "module",
   "main": "dist/index.js",
@@ -23,7 +23,7 @@
   "homepage": "https://github.com/rawveg/ollama-mcp#readme",
   "scripts": {
     "build": "tsc",
-    "test": "vitest",
+    "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "dev": "node dist/index.js",
     "prepare": "npm run build"
