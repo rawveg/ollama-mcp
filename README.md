@@ -19,13 +19,15 @@ An MCP (Model Context Protocol) server that exposes the complete Ollama SDK as M
 
 ## ✨ Features
 
+- ☁️ **Ollama Cloud Support** - Full integration with Ollama's cloud platform
 - 🔧 **14 Comprehensive Tools** - Full access to Ollama's SDK functionality
 - 🔄 **Hot-Swap Architecture** - Automatic tool discovery with zero-config
 - 🎯 **Type-Safe** - Built with TypeScript and Zod validation
 - 📊 **High Test Coverage** - 96%+ coverage with comprehensive test suite
 - 🚀 **Zero Dependencies** - Minimal footprint, maximum performance
 - 🔌 **Drop-in Integration** - Works with Claude Desktop, Cline, and other MCP clients
-- 🌐 **Web Tools** - Built-in web search and fetch capabilities
+- 🌐 **Web Search & Fetch** - Real-time web search and content extraction via Ollama Cloud
+- 🔀 **Hybrid Mode** - Use local and cloud models seamlessly in one server
 
 ## 📦 Installation
 
@@ -86,11 +88,13 @@ Add to your Cline MCP settings (`cline_mcp_settings.json`):
 | `ollama_chat` | Interactive chat with models (supports tools/functions) |
 | `ollama_embed` | Generate embeddings for text |
 
-### Web Tools
+### Web Tools (Ollama Cloud)
 | Tool | Description |
 |------|-------------|
-| `ollama_web_search` | Search the web with customizable result limits |
-| `ollama_web_fetch` | Fetch and parse web page content |
+| `ollama_web_search` | Search the web with customizable result limits (requires `OLLAMA_API_KEY`) |
+| `ollama_web_fetch` | Fetch and parse web page content (requires `OLLAMA_API_KEY`) |
+
+> **Note:** Web tools require an Ollama Cloud API key. They connect to `https://ollama.com/api` for web search and fetch operations.
 
 ## ⚙️ Configuration
 
@@ -98,8 +102,8 @@ Add to your Cline MCP settings (`cline_mcp_settings.json`):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama server endpoint |
-| `OLLAMA_API_KEY` | - | Optional API key for authentication |
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | Ollama server endpoint (use `https://ollama.com` for cloud) |
+| `OLLAMA_API_KEY` | - | API key for Ollama Cloud (required for web tools and cloud models) |
 
 ### Custom Ollama Host
 
@@ -117,7 +121,9 @@ Add to your Cline MCP settings (`cline_mcp_settings.json`):
 }
 ```
 
-### With API Key
+### Ollama Cloud Configuration
+
+To use Ollama's cloud platform with web search and fetch capabilities:
 
 ```json
 {
@@ -126,12 +132,45 @@ Add to your Cline MCP settings (`cline_mcp_settings.json`):
       "command": "npx",
       "args": ["-y", "ollama-mcp"],
       "env": {
-        "OLLAMA_API_KEY": "your-api-key"
+        "OLLAMA_HOST": "https://ollama.com",
+        "OLLAMA_API_KEY": "your-ollama-cloud-api-key"
       }
     }
   }
 }
 ```
+
+**Cloud Features:**
+- ☁️ Access cloud-hosted models
+- 🔍 Web search with `ollama_web_search` (requires API key)
+- 📄 Web fetch with `ollama_web_fetch` (requires API key)
+- 🚀 Faster inference on cloud infrastructure
+
+**Get your API key:** Visit [ollama.com](https://ollama.com) to sign up and obtain your API key.
+
+### Hybrid Mode (Local + Cloud)
+
+You can use both local and cloud models by pointing to your local Ollama instance while providing an API key:
+
+```json
+{
+  "mcpServers": {
+    "ollama": {
+      "command": "npx",
+      "args": ["-y", "ollama-mcp"],
+      "env": {
+        "OLLAMA_HOST": "http://127.0.0.1:11434",
+        "OLLAMA_API_KEY": "your-ollama-cloud-api-key"
+      }
+    }
+  }
+}
+```
+
+This configuration:
+- ✅ Runs local models from your Ollama instance
+- ✅ Enables cloud-only web search and fetch tools
+- ✅ Best of both worlds: privacy + web connectivity
 
 ## 🎯 Usage Examples
 
