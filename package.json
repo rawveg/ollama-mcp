@@ -1,6 +1,6 @@
 {
   "name": "ollama-mcp",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "MCP server for Ollama - exposes all Ollama SDK functionality through MCP tools",
   "type": "module",
   "main": "dist/index.js",

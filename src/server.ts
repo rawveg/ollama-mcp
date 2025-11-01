@@ -36,7 +36,7 @@ export function createServer(ollamaInstance?: Ollama): Server {
   const server = new Server(
     {
       name: 'ollama-mcp',
-      version: '2.0.0',
+      version: '2.0.2',
     },
     {
       capabilities: {
@@ -47,21 +47,15 @@ export function createServer(ollamaInstance?: Ollama): Server {
 
   // Register tool list handler
   server.setRequestHandler(ListToolsRequestSchema, async () => {
-    try {
-      const tools = await discoverTools();
-      console.error(`[DEBUG] Discovered ${tools.length} tools`);
+    const tools = await discoverTools();
 
-      return {
-        tools: tools.map((tool) => ({
-          name: tool.name,
-          description: tool.description,
-          inputSchema: tool.inputSchema,
-        })),
-      };
-    } catch (error) {
-      console.error('[ERROR] Failed to discover tools:', error);
-      throw error;
-    }
+    return {
+      tools: tools.map((tool) => ({
+        name: tool.name,
+        description: tool.description,
+        inputSchema: tool.inputSchema,
+      })),
+    };
   });
 
   // Register tool call handler
