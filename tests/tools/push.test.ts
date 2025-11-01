@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { pushModel } from '../../src/tools/push.js';
+import { pushModel, toolDefinition } from '../../src/tools/push.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('pushModel', () => {
@@ -33,4 +33,15 @@ describe('pushModel', () => {
       stream: false,
     });
   });
+
+  it('should work through toolDefinition handler', async () => {
+    const result = await toolDefinition.handler(
+      ollama,
+      { model: 'my-model:latest', format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });

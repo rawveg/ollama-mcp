@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { deleteModel } from '../../src/tools/delete.js';
+import { deleteModel, toolDefinition } from '../../src/tools/delete.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('deleteModel', () => {
@@ -30,4 +30,15 @@ describe('deleteModel', () => {
       model: 'my-model:latest',
     });
   });
+
+  it('should work through toolDefinition handler', async () => {
+    const result = await toolDefinition.handler(
+      ollama,
+      { model: 'model-to-delete:latest', format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { showModel } from '../../src/tools/show.js';
+import { showModel, toolDefinition } from '../../src/tools/show.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('showModel', () => {
@@ -39,4 +39,20 @@ describe('showModel', () => {
     expect(parsed).toHaveProperty('modelfile');
     expect(parsed).toHaveProperty('details');
   });
+
+  it('should work through toolDefinition handler', async () => {
+    mockShow.mockResolvedValue({
+      modelfile: 'FROM llama3.2',
+      details: { family: 'llama' },
+    });
+
+    const result = await toolDefinition.handler(
+      ollama,
+      { model: 'llama3.2:latest', format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });

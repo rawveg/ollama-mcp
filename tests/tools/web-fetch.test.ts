@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { webFetch } from '../../src/tools/web-fetch.js';
+import { webFetch, toolDefinition } from '../../src/tools/web-fetch.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('webFetch', () => {
@@ -79,4 +79,19 @@ describe('webFetch', () => {
       webFetch(ollama, 'https://example.com/notfound', ResponseFormat.JSON)
     ).rejects.toThrow('Web fetch failed: 404 Not Found');
   });
+
+  it('should work through toolDefinition handler', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ content: "test" })
+    });
+    const result = await toolDefinition.handler(
+      ollama,
+      { url: 'https://example.com', format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });

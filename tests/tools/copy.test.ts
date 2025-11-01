@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { copyModel } from '../../src/tools/copy.js';
+import { copyModel, toolDefinition } from '../../src/tools/copy.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('copyModel', () => {
@@ -31,5 +31,24 @@ describe('copyModel', () => {
       source: 'model-a:latest',
       destination: 'model-b:latest',
     });
+  });
+
+  it('should work through toolDefinition handler', async () => {
+    mockCopy.mockResolvedValue({
+      status: 'success',
+    });
+
+    const result = await toolDefinition.handler(
+      ollama,
+      {
+        source: 'model-a:latest',
+        destination: 'model-b:latest',
+        format: 'json',
+      },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+    expect(mockCopy).toHaveBeenCalledTimes(1);
   });
 });

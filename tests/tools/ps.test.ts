@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { listRunningModels } from '../../src/tools/ps.js';
+import { listRunningModels, toolDefinition } from '../../src/tools/ps.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('listRunningModels', () => {
@@ -31,5 +31,25 @@ describe('listRunningModels', () => {
 
     const parsed = JSON.parse(result);
     expect(parsed).toHaveProperty('models');
+  });
+
+  it('should work through toolDefinition handler', async () => {
+    mockPs.mockResolvedValue({
+      models: [
+        {
+          name: 'llama3.2:latest',
+          size: 5000000000,
+        },
+      ],
+    });
+
+    const result = await toolDefinition.handler(
+      ollama,
+      { format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+    expect(mockPs).toHaveBeenCalledTimes(1);
   });
 });

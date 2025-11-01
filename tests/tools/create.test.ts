@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { createModel } from '../../src/tools/create.js';
+import { createModel, toolDefinition } from '../../src/tools/create.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('createModel', () => {
@@ -39,4 +39,19 @@ describe('createModel', () => {
       stream: false,
     });
   });
+
+  it('should work through toolDefinition handler', async () => {
+    mockCreate.mockResolvedValue({
+      status: 'success',
+    });
+
+    const result = await toolDefinition.handler(
+      ollama,
+      { model: 'my-custom-model:latest', from: 'llama3.2', format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });

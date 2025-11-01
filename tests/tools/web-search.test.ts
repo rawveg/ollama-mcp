@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { webSearch } from '../../src/tools/web-search.js';
+import { webSearch, toolDefinition } from '../../src/tools/web-search.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('webSearch', () => {
@@ -79,4 +79,19 @@ describe('webSearch', () => {
       webSearch(ollama, 'test query', 5, ResponseFormat.JSON)
     ).rejects.toThrow('Web search failed: 500 Internal Server Error');
   });
+
+  it('should work through toolDefinition handler', async () => {
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ results: [] })
+    });
+    const result = await toolDefinition.handler(
+      ollama,
+      { query: 'test query', max_results: 5, format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });

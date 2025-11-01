@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { embedWithModel } from '../../src/tools/embed.js';
+import { embedWithModel, toolDefinition } from '../../src/tools/embed.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('embedWithModel', () => {
@@ -37,4 +37,19 @@ describe('embedWithModel', () => {
     expect(parsed).toHaveProperty('embeddings');
     expect(Array.isArray(parsed.embeddings)).toBe(true);
   });
+
+  it('should work through toolDefinition handler', async () => {
+    mockEmbed.mockResolvedValue({
+      embeddings: [[0.1, 0.2, 0.3]],
+    });
+
+    const result = await toolDefinition.handler(
+      ollama,
+      { model: 'llama3.2:latest', input: 'Test input', format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });

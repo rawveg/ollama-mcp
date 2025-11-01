@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { Ollama } from 'ollama';
-import { chatWithModel } from '../../src/tools/chat.js';
+import { chatWithModel, toolDefinition } from '../../src/tools/chat.js';
 import { ResponseFormat } from '../../src/types.js';
 
 describe('chatWithModel', () => {
@@ -144,4 +144,16 @@ describe('chatWithModel', () => {
 
     expect(result).toContain('tool_calls');
   });
+
+  it('should work through toolDefinition handler', async () => {
+    mockChat.mockResolvedValue({ message: { content: "test" }, done: true });
+    const result = await toolDefinition.handler(
+      ollama,
+      { model: 'llama3.2:latest', messages: [{ role: 'user', content: 'test' }], format: 'json' },
+      ResponseFormat.JSON
+    );
+
+    expect(typeof result).toBe('string');
+  });
+
 });
