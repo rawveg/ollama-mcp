@@ -85,7 +85,18 @@ export function createServer(ollamaInstance?: Ollama): Server {
         format
       );
 
+      // Parse the result to extract structured data
+      let structuredData: unknown = undefined;
+      try {
+        // Attempt to parse the result as JSON
+        structuredData = JSON.parse(result);
+      } catch {
+        // If parsing fails, leave structuredData as undefined
+        // This handles cases where the result is markdown or plain text
+      }
+
       return {
+        structuredContent: structuredData,
         content: [
           {
             type: 'text',
