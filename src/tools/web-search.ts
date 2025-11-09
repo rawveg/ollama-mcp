@@ -3,6 +3,7 @@ import { ResponseFormat } from '../types.js';
 import { formatResponse } from '../utils/response-formatter.js';
 import type { ToolDefinition } from '../autoloader.js';
 import { WebSearchInputSchema } from '../schemas.js';
+import { retryWithBackoff } from '../utils/retry.js';
 
 /**
  * Perform a web search using Ollama's web search API
@@ -21,26 +22,33 @@ export async function webSearch(
     );
   }
 
-  const response = await fetch('https://ollama.com/api/web_search', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+  return retryWithBackoff(
+    async () => {
+      const response = await fetch('https://ollama.com/api/web_search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          query,
+          max_results: maxResults,
+        }),
+      });
+
+      if (!response.ok) {
+        const error: any = new Error(
+          `Web search failed: ${response.status} ${response.statusText}`
+        );
+        error.status = response.status;
+        throw error;
+      }
+
+      const data = await response.json();
+      return formatResponse(JSON.stringify(data), format);
     },
-    body: JSON.stringify({
-      query,
-      max_results: maxResults,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Web search failed: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const data = await response.json();
-  return formatResponse(JSON.stringify(data), format);
+    { maxRetries: 3, initialDelay: 1000 }
+  );
 }
 
 export const toolDefinition: ToolDefinition = {

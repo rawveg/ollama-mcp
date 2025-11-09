@@ -3,6 +3,7 @@ import { ResponseFormat } from '../types.js';
 import { formatResponse } from '../utils/response-formatter.js';
 import type { ToolDefinition } from '../autoloader.js';
 import { WebFetchInputSchema } from '../schemas.js';
+import { retryWithBackoff } from '../utils/retry.js';
 
 /**
  * Fetch a web page using Ollama's web fetch API
@@ -20,25 +21,32 @@ export async function webFetch(
     );
   }
 
-  const response = await fetch('https://ollama.com/api/web_fetch', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+  return retryWithBackoff(
+    async () => {
+      const response = await fetch('https://ollama.com/api/web_fetch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          url,
+        }),
+      });
+
+      if (!response.ok) {
+        const error: any = new Error(
+          `Web fetch failed: ${response.status} ${response.statusText}`
+        );
+        error.status = response.status;
+        throw error;
+      }
+
+      const data = await response.json();
+      return formatResponse(JSON.stringify(data), format);
     },
-    body: JSON.stringify({
-      url,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Web fetch failed: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const data = await response.json();
-  return formatResponse(JSON.stringify(data), format);
+    { maxRetries: 3, initialDelay: 1000 }
+  );
 }
 
 export const toolDefinition: ToolDefinition = {
