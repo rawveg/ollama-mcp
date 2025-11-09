@@ -99,6 +99,9 @@ describe('webFetch', () => {
         ok: false,
         status: 429,
         statusText: 'Too Many Requests',
+        headers: {
+          get: vi.fn().mockReturnValue(null),
+        },
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -119,6 +122,9 @@ describe('webFetch', () => {
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
+      headers: {
+        get: vi.fn().mockReturnValue(null),
+      },
     });
 
     // Act & Assert
@@ -179,6 +185,9 @@ describe('webFetch', () => {
       ok: false,
       status: 429,
       statusText: 'Too Many Requests',
+      headers: {
+        get: vi.fn().mockReturnValue(null),
+      },
     });
 
     // Act & Assert

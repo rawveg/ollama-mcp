@@ -66,4 +66,33 @@ describe('HttpError', () => {
     expect(error.stack).toBeDefined();
     expect(error.stack).toContain('HttpError');
   });
+
+  it('should create an HttpError with Retry-After header', () => {
+    // Arrange & Act
+    const error = new HttpError('Rate limit exceeded', 429, '60');
+
+    // Assert
+    expect(error).toBeInstanceOf(HttpError);
+    expect(error.status).toBe(429);
+    expect(error.retryAfter).toBe('60');
+  });
+
+  it('should create an HttpError without Retry-After header', () => {
+    // Arrange & Act
+    const error = new HttpError('Rate limit exceeded', 429);
+
+    // Assert
+    expect(error).toBeInstanceOf(HttpError);
+    expect(error.status).toBe(429);
+    expect(error.retryAfter).toBeUndefined();
+  });
+
+  it('should handle Retry-After as HTTP-date string', () => {
+    // Arrange & Act
+    const dateString = 'Wed, 21 Oct 2025 07:28:00 GMT';
+    const error = new HttpError('Rate limit exceeded', 429, dateString);
+
+    // Assert
+    expect(error.retryAfter).toBe(dateString);
+  });
 });

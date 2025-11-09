@@ -11,7 +11,7 @@
 
 An MCP (Model Context Protocol) server that exposes the complete Ollama SDK as MCP tools, enabling seamless integration between your local LLM models and MCP-compatible applications like Claude Desktop and Cline.
 
-[Features](#-features) • [Installation](#-installation) • [Available Tools](#-available-tools) • [Configuration](#-configuration) • [Development](#-development)
+[Features](#-features) • [Installation](#-installation) • [Available Tools](#-available-tools) • [Configuration](#-configuration) • [Retry Behavior](#-retry-behavior) • [Development](#-development)
 
 </div>
 
@@ -193,6 +193,60 @@ This configuration:
 - ✅ Runs local models from your Ollama instance
 - ✅ Enables cloud-only web search and fetch tools
 - ✅ Best of both worlds: privacy + web connectivity
+
+## 🔄 Retry Behavior
+
+The MCP server includes intelligent retry logic for handling transient failures when communicating with Ollama APIs:
+
+### Automatic Retry Strategy
+
+**Web Tools (`ollama_web_search` and `ollama_web_fetch`):**
+- Automatically retry on rate limit errors (HTTP 429)
+- Maximum of **3 retry attempts** (4 total requests including initial)
+- Respects the `Retry-After` header when provided by the API
+- Falls back to exponential backoff with jitter when `Retry-After` is not present
+
+### Retry-After Header Support
+
+The server intelligently handles the standard HTTP `Retry-After` header in two formats:
+
+**1. Delay-Seconds Format:**
+```
+Retry-After: 60
+```
+Waits exactly 60 seconds before retrying.
+
+**2. HTTP-Date Format:**
+```
+Retry-After: Wed, 21 Oct 2025 07:28:00 GMT
+```
+Calculates delay until the specified timestamp.
+
+### Exponential Backoff
+
+When `Retry-After` is not provided or invalid:
+- **Initial delay:** 1 second
+- **Maximum delay:** 10 seconds (configurable cap)
+- **Strategy:** Exponential backoff with random jitter
+- **Formula:** `min(initialDelay × 2^attempt, maxDelay) + randomJitter`
+
+**Example retry delays:**
+- 1st retry: 1-2 seconds
+- 2nd retry: 2-4 seconds
+- 3rd retry: 4-8 seconds (capped at 10s max)
+
+### Error Handling
+
+**Retried Errors:**
+- HTTP 429 (Too Many Requests) - rate limiting
+
+**Non-Retried Errors:**
+- Network timeouts (no status code)
+- Abort/cancel errors
+- HTTP 4xx errors (except 429)
+- HTTP 5xx errors
+
+The retry mechanism ensures robust handling of temporary API issues while respecting server-provided retry guidance and preventing excessive request rates.
 
 ## 🎯 Usage Examples
 

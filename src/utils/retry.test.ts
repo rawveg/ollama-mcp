@@ -241,4 +241,226 @@ describe('retryWithBackoff', () => {
     // Should attempt maxRetries + 1 times (initial + 5 retries)
     expect(mockFn).toHaveBeenCalledTimes(6);
   });
+
+  it('should cap delays at maxDelay when specified', async () => {
+    // Arrange
+    const error429 = new HttpError('Rate limit exceeded', 429);
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi.fn().mockRejectedValue(error429);
+
+    // Act & Assert
+    await expect(retryWithBackoff(mockFn, {
+      maxRetries: 5,
+      initialDelay: 1000,
+      maxDelay: 5000
+    })).rejects.toThrow('Rate limit exceeded');
+
+    // All delays should be capped at maxDelay (5000ms) + jitter
+    // Without cap: 1000, 2000, 4000, 8000, 16000 (before jitter)
+    // With cap: 1000, 2000, 4000, 5000, 5000 (before jitter)
+    // With jitter: delays[3] and delays[4] should be < 10000 (5000 + max jitter 5000)
+
+    // First three delays should follow exponential pattern
+    expect(delays[0]).toBeGreaterThanOrEqual(1000);
+    expect(delays[0]).toBeLessThan(2000);
+
+    expect(delays[1]).toBeGreaterThanOrEqual(2000);
+    expect(delays[1]).toBeLessThan(4000);
+
+    expect(delays[2]).toBeGreaterThanOrEqual(4000);
+    expect(delays[2]).toBeLessThan(8000);
+
+    // Fourth and fifth delays should be capped at maxDelay + jitter
+    expect(delays[3]).toBeGreaterThanOrEqual(5000);
+    expect(delays[3]).toBeLessThan(10000); // 5000 + max jitter of 5000
+
+    expect(delays[4]).toBeGreaterThanOrEqual(5000);
+    expect(delays[4]).toBeLessThan(10000); // 5000 + max jitter of 5000
+  });
+
+  it('should allow unbounded growth when maxDelay is not specified (backward compatibility)', async () => {
+    // Arrange
+    const error429 = new HttpError('Rate limit exceeded', 429);
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error429)
+      .mockRejectedValueOnce(error429)
+      .mockResolvedValueOnce('success');
+
+    // Act
+    await retryWithBackoff(mockFn, { maxRetries: 3, initialDelay: 1000 });
+
+    // Assert - delays should grow without bounds
+    // Attempt 0: 1000 + jitter (1000-2000ms)
+    expect(delays[0]).toBeGreaterThanOrEqual(1000);
+    expect(delays[0]).toBeLessThan(2000);
+
+    // Attempt 1: 2000 + jitter (2000-4000ms)
+    expect(delays[1]).toBeGreaterThanOrEqual(2000);
+    expect(delays[1]).toBeLessThan(4000);
+  });
+
+  it('should handle maxDelay smaller than initialDelay', async () => {
+    // Arrange
+    const error429 = new HttpError('Rate limit exceeded', 429);
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error429)
+      .mockResolvedValueOnce('success');
+
+    // Act - maxDelay (500) is less than initialDelay (1000)
+    await retryWithBackoff(mockFn, {
+      maxRetries: 2,
+      initialDelay: 1000,
+      maxDelay: 500
+    });
+
+    // Assert - delay should be capped at maxDelay + jitter from the start
+    expect(delays[0]).toBeGreaterThanOrEqual(500);
+    expect(delays[0]).toBeLessThan(1000); // 500 + max jitter of 500
+  });
+
+  it('should use Retry-After header value in seconds when provided', async () => {
+    // Arrange
+    const error429 = new HttpError('Rate limit exceeded', 429, '5'); // 5 seconds
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error429)
+      .mockResolvedValueOnce('success');
+
+    // Act
+    await retryWithBackoff(mockFn, { maxRetries: 2, initialDelay: 1000 });
+
+    // Assert - should use 5000ms from Retry-After instead of exponential backoff
+    expect(delays[0]).toBe(5000);
+  });
+
+  it('should use Retry-After header value as HTTP-date when provided', async () => {
+    // Arrange
+    const futureDate = new Date(Date.now() + 3000); // 3 seconds from now
+    const error429 = new HttpError('Rate limit exceeded', 429, futureDate.toUTCString());
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error429)
+      .mockResolvedValueOnce('success');
+
+    // Act
+    await retryWithBackoff(mockFn, { maxRetries: 2, initialDelay: 1000 });
+
+    // Assert - should use calculated delay from date (approximately 3000ms)
+    // Allow wider tolerance due to timing variations in test execution
+    expect(delays[0]).toBeGreaterThanOrEqual(2000);
+    expect(delays[0]).toBeLessThan(4000);
+  });
+
+  it('should fallback to exponential backoff if Retry-After is invalid', async () => {
+    // Arrange
+    const error429 = new HttpError('Rate limit exceeded', 429, 'invalid-value');
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error429)
+      .mockResolvedValueOnce('success');
+
+    // Act
+    await retryWithBackoff(mockFn, { maxRetries: 2, initialDelay: 1000 });
+
+    // Assert - should fallback to exponential backoff (1000-2000ms)
+    expect(delays[0]).toBeGreaterThanOrEqual(1000);
+    expect(delays[0]).toBeLessThan(2000);
+  });
+
+  it('should respect maxDelay even with Retry-After header', async () => {
+    // Arrange
+    const error429 = new HttpError('Rate limit exceeded', 429, '20'); // 20 seconds
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error429)
+      .mockResolvedValueOnce('success');
+
+    // Act - maxDelay is 5000ms, but Retry-After says 20000ms
+    await retryWithBackoff(mockFn, { maxRetries: 2, initialDelay: 1000, maxDelay: 5000 });
+
+    // Assert - should be capped at maxDelay
+    expect(delays[0]).toBe(5000);
+  });
+
+  it('should handle negative or past Retry-After dates gracefully', async () => {
+    // Arrange
+    const pastDate = new Date(Date.now() - 5000); // 5 seconds ago
+    const error429 = new HttpError('Rate limit exceeded', 429, pastDate.toUTCString());
+    const delays: number[] = [];
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any, delay: number) => {
+      delays.push(delay);
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error429)
+      .mockResolvedValueOnce('success');
+
+    // Act
+    await retryWithBackoff(mockFn, { maxRetries: 2, initialDelay: 1000 });
+
+    // Assert - should use minimum delay (0ms or fallback to exponential)
+    expect(delays[0]).toBeGreaterThanOrEqual(0);
+    expect(delays[0]).toBeLessThan(2000);
+  });
 });

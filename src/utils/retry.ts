@@ -8,6 +8,8 @@ export interface RetryOptions {
   maxRetries?: number;
   /** Initial delay in milliseconds before first retry (default: 1000ms) */
   initialDelay?: number;
+  /** Maximum delay in milliseconds to cap exponential backoff (default: Infinity) */
+  maxDelay?: number;
 }
 
 /**
@@ -22,6 +24,34 @@ function sleep(ms: number): Promise<void> {
  */
 function isRateLimitError(error: unknown): boolean {
   return error instanceof HttpError && error.status === 429;
+}
+
+/**
+ * Parse Retry-After header value to milliseconds
+ * Supports both delay-seconds and HTTP-date formats
+ * @param retryAfter - Retry-After header value
+ * @returns Delay in milliseconds, or null if invalid
+ */
+function parseRetryAfter(retryAfter: string | undefined): number | null {
+  if (!retryAfter) {
+    return null;
+  }
+
+  // Try parsing as seconds (integer)
+  const seconds = parseInt(retryAfter, 10);
+  if (!isNaN(seconds) && seconds >= 0) {
+    return seconds * 1000;
+  }
+
+  // Try parsing as HTTP-date
+  const date = new Date(retryAfter);
+  if (!isNaN(date.getTime())) {
+    const delay = date.getTime() - Date.now();
+    // Only use if it's a future date
+    return delay > 0 ? delay : 0;
+  }
+
+  return null;
 }
 
 /**
@@ -42,7 +72,7 @@ export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
 ): Promise<T> {
-  const { maxRetries = 3, initialDelay = 1000 } = options;
+  const { maxRetries = 3, initialDelay = 1000, maxDelay = Infinity } = options;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -59,12 +89,24 @@ export async function retryWithBackoff<T>(
         throw error;
       }
 
-      // Calculate delay with exponential backoff and jitter
-      const exponentialDelay = initialDelay * Math.pow(2, attempt);
-      const jitter = Math.random() * exponentialDelay;
-      const totalDelay = exponentialDelay + jitter;
+      // Check if error has Retry-After header
+      let delay: number;
+      const retryAfterDelay = error instanceof HttpError ? parseRetryAfter(error.retryAfter) : null;
 
-      await sleep(totalDelay);
+      if (retryAfterDelay !== null) {
+        // Use Retry-After header value, capped at maxDelay
+        delay = Math.min(retryAfterDelay, maxDelay);
+      } else {
+        // Calculate delay with exponential backoff, capped at maxDelay
+        const exponentialDelay = Math.min(
+          initialDelay * Math.pow(2, attempt),
+          maxDelay
+        );
+        const jitter = Math.random() * exponentialDelay;
+        delay = exponentialDelay + jitter;
+      }
+
+      await sleep(delay);
     }
   }
 

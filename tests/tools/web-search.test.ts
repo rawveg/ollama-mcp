@@ -73,7 +73,10 @@ describe('webSearch', () => {
       ok: false,
       status: 500,
       statusText: 'Internal Server Error',
-    } as Response);
+      headers: {
+        get: vi.fn().mockReturnValue(null),
+      },
+    } as unknown as Response);
 
     await expect(
       webSearch(ollama, 'test query', 5, ResponseFormat.JSON)

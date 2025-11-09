@@ -38,16 +38,18 @@ export async function webSearch(
       });
 
       if (!response.ok) {
+        const retryAfter = response.headers.get('retry-after') ?? undefined;
         throw new HttpError(
           `Web search failed: ${response.status} ${response.statusText}`,
-          response.status
+          response.status,
+          retryAfter
         );
       }
 
       const data = await response.json();
       return formatResponse(JSON.stringify(data), format);
     },
-    { maxRetries: 3, initialDelay: 1000 }
+    { maxRetries: 3, initialDelay: 1000, maxDelay: 10000 }
   );
 }
 

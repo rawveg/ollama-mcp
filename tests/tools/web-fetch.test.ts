@@ -73,7 +73,10 @@ describe('webFetch', () => {
       ok: false,
       status: 404,
       statusText: 'Not Found',
-    } as Response);
+      headers: {
+        get: vi.fn().mockReturnValue(null),
+      },
+    } as unknown as Response);
 
     await expect(
       webFetch(ollama, 'https://example.com/notfound', ResponseFormat.JSON)
