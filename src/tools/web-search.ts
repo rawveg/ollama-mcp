@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/response-formatter.js';
 import type { ToolDefinition } from '../autoloader.js';
 import { WebSearchInputSchema } from '../schemas.js';
 import { retryWithBackoff } from '../utils/retry.js';
+import { HttpError } from '../utils/http-error.js';
 
 /**
  * Perform a web search using Ollama's web search API
@@ -37,11 +38,10 @@ export async function webSearch(
       });
 
       if (!response.ok) {
-        const error: any = new Error(
-          `Web search failed: ${response.status} ${response.statusText}`
+        throw new HttpError(
+          `Web search failed: ${response.status} ${response.statusText}`,
+          response.status
         );
-        error.status = response.status;
-        throw error;
       }
 
       const data = await response.json();

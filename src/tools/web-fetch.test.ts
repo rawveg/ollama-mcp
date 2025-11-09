@@ -2,11 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { webFetch } from './web-fetch.js';
 import { ResponseFormat } from '../types.js';
 import type { Ollama } from 'ollama';
-
-// Mock the retry module
-vi.mock('../utils/retry.js', () => ({
-  retryWithBackoff: vi.fn((fn) => fn()),
-}));
+import { HttpError } from '../utils/http-error.js';
 
 // Mock fetch globally
 global.fetch = vi.fn();
@@ -64,9 +60,8 @@ describe('webFetch', () => {
     expect(result).toContain('Test Page');
   });
 
-  it('should use retry logic for web fetch', async () => {
+  it('should successfully complete on first attempt (no retry needed)', async () => {
     // Arrange
-    const { retryWithBackoff } = await import('../utils/retry.js');
     const mockResponse = {
       title: 'Test Page',
       content: 'Test content',
@@ -78,29 +73,27 @@ describe('webFetch', () => {
     });
 
     // Act
-    await webFetch(mockOllama, testUrl, ResponseFormat.JSON);
+    const result = await webFetch(mockOllama, testUrl, ResponseFormat.JSON);
 
     // Assert
-    expect(retryWithBackoff).toHaveBeenCalledWith(
-      expect.any(Function),
-      expect.objectContaining({
-        maxRetries: 3,
-        initialDelay: 1000,
-      })
-    );
+    expect(result).toContain('Test Page');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
-  it('should handle 429 rate limit error and retry', async () => {
+  it('should retry on 429 rate limit error and eventually succeed', async () => {
     // Arrange
-    const error429 = new Error('Rate limit exceeded');
-    (error429 as any).status = 429;
-
     const mockResponse = {
       title: 'Success after retry',
       content: 'content',
     };
 
-    // First call returns 429, second succeeds
+    // Mock setTimeout to execute immediately (avoid real delays in tests)
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    // First call returns 429, second call succeeds
     (global.fetch as any)
       .mockResolvedValueOnce({
         ok: false,
@@ -111,19 +104,6 @@ describe('webFetch', () => {
         ok: true,
         json: async () => mockResponse,
       });
-
-    // Mock retryWithBackoff to actually retry
-    const { retryWithBackoff } = await import('../utils/retry.js');
-    (retryWithBackoff as any).mockImplementation(async (fn: any) => {
-      try {
-        return await fn();
-      } catch (error: any) {
-        if (error.status === 429) {
-          return await fn();
-        }
-        throw error;
-      }
-    });
 
     // Act
     const result = await webFetch(mockOllama, testUrl, ResponseFormat.JSON);
@@ -144,5 +124,68 @@ describe('webFetch', () => {
     // Act & Assert
     await expect(webFetch(mockOllama, testUrl, ResponseFormat.JSON))
       .rejects.toThrow('Web fetch failed: 500 Internal Server Error');
+  });
+
+  it('should throw error on network timeout (no status code)', async () => {
+    // Arrange
+    const networkError = new Error('Network timeout - no response from server');
+    (global.fetch as any).mockRejectedValueOnce(networkError);
+
+    // Act & Assert
+    await expect(webFetch(mockOllama, testUrl, ResponseFormat.JSON))
+      .rejects.toThrow('Network timeout - no response from server');
+
+    // Should not retry network errors
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should throw error when response.json() fails (malformed JSON)', async () => {
+    // Arrange
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => {
+        throw new Error('Unexpected token < in JSON at position 0');
+      },
+    });
+
+    // Act & Assert
+    await expect(webFetch(mockOllama, testUrl, ResponseFormat.JSON))
+      .rejects.toThrow('Unexpected token < in JSON at position 0');
+  });
+
+  it('should handle fetch abort/cancel errors', async () => {
+    // Arrange
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+    (global.fetch as any).mockRejectedValueOnce(abortError);
+
+    // Act & Assert
+    await expect(webFetch(mockOllama, testUrl, ResponseFormat.JSON))
+      .rejects.toThrow('The operation was aborted');
+
+    // Should not retry abort errors
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should eventually fail after multiple 429 retries', async () => {
+    // Arrange
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    // Always return 429 (will exhaust retries)
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+    });
+
+    // Act & Assert
+    await expect(webFetch(mockOllama, testUrl, ResponseFormat.JSON))
+      .rejects.toThrow('Web fetch failed: 429 Too Many Requests');
+
+    // Should attempt initial + 3 retries = 4 total
+    expect(global.fetch).toHaveBeenCalledTimes(4);
   });
 });

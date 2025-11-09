@@ -4,6 +4,7 @@ import { formatResponse } from '../utils/response-formatter.js';
 import type { ToolDefinition } from '../autoloader.js';
 import { WebFetchInputSchema } from '../schemas.js';
 import { retryWithBackoff } from '../utils/retry.js';
+import { HttpError } from '../utils/http-error.js';
 
 /**
  * Fetch a web page using Ollama's web fetch API
@@ -35,11 +36,10 @@ export async function webFetch(
       });
 
       if (!response.ok) {
-        const error: any = new Error(
-          `Web fetch failed: ${response.status} ${response.statusText}`
+        throw new HttpError(
+          `Web fetch failed: ${response.status} ${response.statusText}`,
+          response.status
         );
-        error.status = response.status;
-        throw error;
       }
 
       const data = await response.json();
