@@ -226,15 +226,15 @@ Calculates delay until the specified timestamp.
 ### Exponential Backoff
 
 When `Retry-After` is not provided or invalid:
-- **Initial delay:** 1 second
-- **Maximum delay:** 10 seconds (configurable cap)
-- **Strategy:** Exponential backoff with random jitter
-- **Formula:** `min(initialDelay × 2^attempt, maxDelay) + randomJitter`
+- **Initial delay:** 1 second (default)
+- **Maximum delay:** 10 seconds (default, configurable)
+- **Strategy:** Exponential backoff with full jitter
+- **Formula:** `random(0, min(initialDelay × 2^attempt, maxDelay))`
 
 **Example retry delays:**
-- 1st retry: 1-2 seconds
-- 2nd retry: 2-4 seconds
-- 3rd retry: 4-8 seconds (capped at 10s max)
+- 1st retry: 0-1 seconds
+- 2nd retry: 0-2 seconds
+- 3rd retry: 0-4 seconds (capped at 0-10s max)
 
 ### Error Handling
 

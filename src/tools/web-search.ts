@@ -49,7 +49,7 @@ export async function webSearch(
       const data = await response.json();
       return formatResponse(JSON.stringify(data), format);
     },
-    { maxRetries: 3, initialDelay: 1000, maxDelay: 10000 }
+    { maxRetries: 3, initialDelay: 1000 } // maxDelay defaults to 10000ms
   );
 }
 

@@ -8,7 +8,7 @@ export interface RetryOptions {
   maxRetries?: number;
   /** Initial delay in milliseconds before first retry (default: 1000ms) */
   initialDelay?: number;
-  /** Maximum delay in milliseconds to cap exponential backoff (default: Infinity) */
+  /** Maximum delay in milliseconds to cap exponential backoff (default: 10000ms) */
   maxDelay?: number;
   /** Request timeout in milliseconds (default: 30000ms) */
   timeout?: number;
@@ -91,10 +91,10 @@ function parseRetryAfter(retryAfter: string | undefined): number | null {
 /**
  * Retry a function with exponential backoff on rate limit errors
  *
- * Uses exponential backoff with jitter to prevent thundering herd:
- * - Attempt 0: 1-2 seconds (1s + 0-1s jitter)
- * - Attempt 1: 2-4 seconds (2s + 0-2s jitter)
- * - Attempt 2: 4-8 seconds (4s + 0-4s jitter)
+ * Uses exponential backoff with full jitter to prevent thundering herd:
+ * - Attempt 0: 0-1 seconds (random in range [0, 1s])
+ * - Attempt 1: 0-2 seconds (random in range [0, 2s])
+ * - Attempt 2: 0-4 seconds (random in range [0, 4s])
  * - And so on...
  *
  * @param fn - The function to retry
@@ -106,7 +106,7 @@ export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
 ): Promise<T> {
-  const { maxRetries = 3, initialDelay = 1000, maxDelay = Infinity } = options;
+  const { maxRetries = 3, initialDelay = 1000, maxDelay = 10000 } = options;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
@@ -131,13 +131,13 @@ export async function retryWithBackoff<T>(
         // Use Retry-After header value, capped at maxDelay
         delay = Math.min(retryAfterDelay, maxDelay);
       } else {
-        // Calculate delay with exponential backoff, capped at maxDelay
+        // Calculate delay with exponential backoff and full jitter, capped at maxDelay
         const exponentialDelay = Math.min(
           initialDelay * Math.pow(2, attempt),
           maxDelay
         );
-        const jitter = Math.random() * exponentialDelay;
-        delay = exponentialDelay + jitter;
+        // Full jitter: random value between 0 and exponentialDelay
+        delay = Math.random() * exponentialDelay;
       }
 
       await sleep(delay);
