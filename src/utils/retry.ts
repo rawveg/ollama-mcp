@@ -46,8 +46,13 @@ function isRetryableError(error: unknown): boolean {
 
 /**
  * Fetch with timeout support using AbortController
+ *
+ * Note: Creates an internal AbortController for timeout management.
+ * External cancellation via options.signal is not supported - any signal
+ * passed in options will be overridden by the internal timeout signal.
+ *
  * @param url - URL to fetch
- * @param options - Fetch options
+ * @param options - Fetch options (signal will be overridden)
  * @param timeout - Timeout in milliseconds (default: 30000ms)
  * @returns Fetch response
  * @throws Error if request times out
@@ -66,12 +71,15 @@ export async function fetchWithTimeout(
       signal: controller.signal,
     });
     return response;
-  } catch (error: any) {
-    if (error.name === 'AbortError') {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.name === 'AbortError') {
       throw new Error(`Request to ${url} timed out after ${timeout}ms`);
     }
     throw error;
   } finally {
+    // Always clear timeout to prevent memory leaks and race conditions.
+    // If fetch completes exactly at timeout boundary, clearTimeout ensures
+    // the timeout callback doesn't execute after we've already returned.
     clearTimeout(timeoutId);
   }
 }
@@ -113,10 +121,13 @@ function parseRetryAfter(retryAfter: string | undefined): number | null {
  * - Attempt 2: 0-4 seconds (random in range [0, 4s])
  * - And so on...
  *
+ * Retry attempts are logged to console.debug for debugging and telemetry purposes,
+ * including attempt number, delay, and error message.
+ *
  * @param fn - The function to retry
  * @param options - Retry options (maxRetries: number of retry attempts after initial call)
  * @returns The result of the function
- * @throws The last error if max retries exceeded or non-429 error
+ * @throws The last error if max retries exceeded or non-retryable error
  */
 export async function retryWithBackoff<T>(
   fn: () => Promise<T>,
@@ -155,6 +166,15 @@ export async function retryWithBackoff<T>(
         // Full jitter: random value between 0 and exponentialDelay
         delay = Math.random() * exponentialDelay;
       }
+
+      // Log retry attempt for debugging/telemetry
+      console.debug(
+        `Retry attempt ${attempt + 1}/${maxRetries} after ${Math.round(delay)}ms delay`,
+        {
+          delay: Math.round(delay),
+          error: error instanceof Error ? error.message : String(error)
+        }
+      );
 
       await sleep(delay);
     }
