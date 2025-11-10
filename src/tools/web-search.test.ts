@@ -57,6 +57,7 @@ describe('webSearch', () => {
           Authorization: 'Bearer test-api-key',
         },
         body: JSON.stringify({ query: testQuery, max_results: maxResults }),
+        signal: expect.any(AbortSignal),
       }
     );
     expect(result).toContain('Result 1');
@@ -171,8 +172,9 @@ describe('webSearch', () => {
     (global.fetch as any).mockRejectedValueOnce(abortError);
 
     // Act & Assert
+    // Note: fetchWithTimeout transforms AbortError to timeout message
     await expect(webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON))
-      .rejects.toThrow('The operation was aborted');
+      .rejects.toThrow('Request timeout after 30000ms');
 
     // Should not retry abort errors
     expect(global.fetch).toHaveBeenCalledTimes(1);

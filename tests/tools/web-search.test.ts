@@ -50,6 +50,7 @@ describe('webSearch', () => {
           query: 'what is ollama?',
           max_results: 5,
         }),
+        signal: expect.any(AbortSignal),
       }
     );
 

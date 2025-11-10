@@ -48,6 +48,7 @@ describe('webFetch', () => {
         body: JSON.stringify({
           url: 'https://ollama.com',
         }),
+        signal: expect.any(AbortSignal),
       }
     );
 

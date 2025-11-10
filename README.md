@@ -203,6 +203,7 @@ The MCP server includes intelligent retry logic for handling transient failures 
 **Web Tools (`ollama_web_search` and `ollama_web_fetch`):**
 - Automatically retry on rate limit errors (HTTP 429)
 - Maximum of **3 retry attempts** (4 total requests including initial)
+- **Request timeout:** 30 seconds per request (prevents hung connections)
 - Respects the `Retry-After` header when provided by the API
 - Falls back to exponential backoff with jitter when `Retry-After` is not present
 
@@ -241,12 +242,13 @@ When `Retry-After` is not provided or invalid:
 - HTTP 429 (Too Many Requests) - rate limiting
 
 **Non-Retried Errors:**
+- Request timeouts (30 second limit exceeded)
 - Network timeouts (no status code)
 - Abort/cancel errors
 - HTTP 4xx errors (except 429)
 - HTTP 5xx errors
 
-The retry mechanism ensures robust handling of temporary API issues while respecting server-provided retry guidance and preventing excessive request rates.
+The retry mechanism ensures robust handling of temporary API issues while respecting server-provided retry guidance and preventing excessive request rates. Individual requests timeout after 30 seconds to prevent indefinitely hung connections.
 
 ## 🎯 Usage Examples
 

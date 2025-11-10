@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { retryWithBackoff } from './retry.js';
+import { retryWithBackoff, fetchWithTimeout } from './retry.js';
 import { HttpError } from './http-error.js';
 
 describe('retryWithBackoff', () => {
@@ -462,5 +462,60 @@ describe('retryWithBackoff', () => {
     // Assert - should use minimum delay (0ms or fallback to exponential)
     expect(delays[0]).toBeGreaterThanOrEqual(0);
     expect(delays[0]).toBeLessThan(2000);
+  });
+});
+
+describe('fetchWithTimeout', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('should successfully fetch when request completes before timeout', async () => {
+    // Arrange
+    const mockResponse = { ok: true, status: 200 } as Response;
+    global.fetch = vi.fn().mockResolvedValue(mockResponse);
+
+    // Act
+    const result = await fetchWithTimeout('https://example.com', undefined, 5000);
+
+    // Assert
+    expect(result).toBe(mockResponse);
+    expect(global.fetch).toHaveBeenCalledWith('https://example.com', {
+      signal: expect.any(AbortSignal),
+    });
+  });
+
+  it('should timeout when request takes too long', async () => {
+    // Arrange - Create a fetch that respects abort signal
+    const slowFetch = vi.fn((url: string, options?: RequestInit) =>
+      new Promise((resolve, reject) => {
+        const timeoutId = setTimeout(() => resolve({ ok: true }), 200);
+
+        // Listen for abort signal
+        if (options?.signal) {
+          options.signal.addEventListener('abort', () => {
+            clearTimeout(timeoutId);
+            const error: any = new Error('The operation was aborted');
+            error.name = 'AbortError';
+            reject(error);
+          });
+        }
+      })
+    );
+    global.fetch = slowFetch as any;
+
+    // Act & Assert
+    await expect(fetchWithTimeout('https://example.com', undefined, 50))
+      .rejects.toThrow('Request timeout after 50ms');
+  });
+
+  it('should pass through non-abort errors', async () => {
+    // Arrange - Create a fetch that throws a network error
+    const networkError = new Error('Network failure');
+    global.fetch = vi.fn().mockRejectedValue(networkError);
+
+    // Act & Assert
+    await expect(fetchWithTimeout('https://example.com'))
+      .rejects.toThrow('Network failure');
   });
 });

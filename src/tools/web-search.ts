@@ -3,7 +3,7 @@ import { ResponseFormat } from '../types.js';
 import { formatResponse } from '../utils/response-formatter.js';
 import type { ToolDefinition } from '../autoloader.js';
 import { WebSearchInputSchema } from '../schemas.js';
-import { retryWithBackoff } from '../utils/retry.js';
+import { retryWithBackoff, fetchWithTimeout } from '../utils/retry.js';
 import { HttpError } from '../utils/http-error.js';
 
 /**
@@ -25,7 +25,7 @@ export async function webSearch(
 
   return retryWithBackoff(
     async () => {
-      const response = await fetch('https://ollama.com/api/web_search', {
+      const response = await fetchWithTimeout('https://ollama.com/api/web_search', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -35,7 +35,7 @@ export async function webSearch(
           query,
           max_results: maxResults,
         }),
-      });
+      }, 30000); // 30 second timeout
 
       if (!response.ok) {
         const retryAfter = response.headers.get('retry-after') ?? undefined;

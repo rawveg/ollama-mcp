@@ -55,6 +55,7 @@ describe('webFetch', () => {
           Authorization: 'Bearer test-api-key',
         },
         body: JSON.stringify({ url: testUrl }),
+        signal: expect.any(AbortSignal),
       }
     );
     expect(result).toContain('Test Page');
@@ -166,8 +167,9 @@ describe('webFetch', () => {
     (global.fetch as any).mockRejectedValueOnce(abortError);
 
     // Act & Assert
+    // Note: fetchWithTimeout transforms AbortError to timeout message
     await expect(webFetch(mockOllama, testUrl, ResponseFormat.JSON))
-      .rejects.toThrow('The operation was aborted');
+      .rejects.toThrow('Request timeout after 30000ms');
 
     // Should not retry abort errors
     expect(global.fetch).toHaveBeenCalledTimes(1);

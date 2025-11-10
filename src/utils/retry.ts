@@ -10,6 +10,8 @@ export interface RetryOptions {
   initialDelay?: number;
   /** Maximum delay in milliseconds to cap exponential backoff (default: Infinity) */
   maxDelay?: number;
+  /** Request timeout in milliseconds (default: 30000ms) */
+  timeout?: number;
 }
 
 /**
@@ -24,6 +26,38 @@ function sleep(ms: number): Promise<void> {
  */
 function isRateLimitError(error: unknown): boolean {
   return error instanceof HttpError && error.status === 429;
+}
+
+/**
+ * Fetch with timeout support using AbortController
+ * @param url - URL to fetch
+ * @param options - Fetch options
+ * @param timeout - Timeout in milliseconds (default: 30000ms)
+ * @returns Fetch response
+ * @throws Error if request times out
+ */
+export async function fetchWithTimeout(
+  url: string,
+  options?: RequestInit,
+  timeout: number = 30000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return response;
+  } catch (error: any) {
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 /**
