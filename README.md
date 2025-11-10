@@ -11,7 +11,7 @@
 
 An MCP (Model Context Protocol) server that exposes the complete Ollama SDK as MCP tools, enabling seamless integration between your local LLM models and MCP-compatible applications like Claude Desktop and Cline.
 
-[Features](#-features) • [Installation](#-installation) • [Available Tools](#-available-tools) • [Configuration](#-configuration) • [Development](#-development)
+[Features](#-features) • [Installation](#-installation) • [Available Tools](#-available-tools) • [Configuration](#-configuration) • [Retry Behavior](#-retry-behavior) • [Development](#-development)
 
 </div>
 
@@ -193,6 +193,66 @@ This configuration:
 - ✅ Runs local models from your Ollama instance
 - ✅ Enables cloud-only web search and fetch tools
 - ✅ Best of both worlds: privacy + web connectivity
+
+## 🔄 Retry Behavior
+
+The MCP server includes intelligent retry logic for handling transient failures when communicating with Ollama APIs:
+
+### Automatic Retry Strategy
+
+**Web Tools (`ollama_web_search` and `ollama_web_fetch`):**
+- Automatically retry on rate limit errors (HTTP 429)
+- Maximum of **3 retry attempts** (4 total requests including initial)
+- **Request timeout:** 30 seconds per request (prevents hung connections)
+- Respects the `Retry-After` header when provided by the API
+- Falls back to exponential backoff with jitter when `Retry-After` is not present
+
+### Retry-After Header Support
+
+The server intelligently handles the standard HTTP `Retry-After` header in two formats:
+
+**1. Delay-Seconds Format:**
+```
+Retry-After: 60
+```
+Waits exactly 60 seconds before retrying.
+
+**2. HTTP-Date Format:**
+```
+Retry-After: Wed, 21 Oct 2025 07:28:00 GMT
+```
+Calculates delay until the specified timestamp.
+
+### Exponential Backoff
+
+When `Retry-After` is not provided or invalid:
+- **Initial delay:** 1 second (default)
+- **Maximum delay:** 10 seconds (default, configurable)
+- **Strategy:** Exponential backoff with full jitter
+- **Formula:** `random(0, min(initialDelay × 2^attempt, maxDelay))`
+
+**Example retry delays:**
+- 1st retry: 0-1 seconds
+- 2nd retry: 0-2 seconds
+- 3rd retry: 0-4 seconds (capped at 0-10s max)
+
+### Error Handling
+
+**Retried Errors (transient failures):**
+- HTTP 429 (Too Many Requests) - rate limiting
+- HTTP 500 (Internal Server Error) - transient server issues
+- HTTP 502 (Bad Gateway) - gateway/proxy received invalid response
+- HTTP 503 (Service Unavailable) - server temporarily unable to handle request
+- HTTP 504 (Gateway Timeout) - gateway/proxy did not receive timely response
+
+**Non-Retried Errors (permanent failures):**
+- Request timeouts (30 second limit exceeded)
+- Network timeouts (no status code)
+- Abort/cancel errors
+- HTTP 4xx errors (except 429) - client errors requiring changes
+- Other HTTP 5xx errors (501, 505, 506, 508, etc.) - configuration/implementation issues
+
+The retry mechanism ensures robust handling of temporary API issues while respecting server-provided retry guidance and preventing excessive request rates. Transient 5xx errors (500, 502, 503, 504) are safe to retry for the idempotent POST operations used by `ollama_web_search` and `ollama_web_fetch`. Individual requests timeout after 30 seconds to prevent indefinitely hung connections.
 
 ## 🎯 Usage Examples
 

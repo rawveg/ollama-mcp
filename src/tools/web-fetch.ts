@@ -3,6 +3,9 @@ import { ResponseFormat } from '../types.js';
 import { formatResponse } from '../utils/response-formatter.js';
 import type { ToolDefinition } from '../autoloader.js';
 import { WebFetchInputSchema } from '../schemas.js';
+import { retryWithBackoff, fetchWithTimeout } from '../utils/retry.js';
+import { HttpError } from '../utils/http-error.js';
+import { WEB_API_RETRY_CONFIG, WEB_API_TIMEOUT } from '../utils/retry-config.js';
 
 /**
  * Fetch a web page using Ollama's web fetch API
@@ -20,25 +23,37 @@ export async function webFetch(
     );
   }
 
-  const response = await fetch('https://ollama.com/api/web_fetch', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
+  return retryWithBackoff(
+    async () => {
+      const response = await fetchWithTimeout(
+        'https://ollama.com/api/web_fetch',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            url,
+          }),
+        },
+        WEB_API_TIMEOUT
+      );
+
+      if (!response.ok) {
+        const retryAfter = response.headers.get('retry-after') ?? undefined;
+        throw new HttpError(
+          `Web fetch failed: ${response.status} ${response.statusText}`,
+          response.status,
+          retryAfter
+        );
+      }
+
+      const data = await response.json();
+      return formatResponse(JSON.stringify(data), format);
     },
-    body: JSON.stringify({
-      url,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Web fetch failed: ${response.status} ${response.statusText}`
-    );
-  }
-
-  const data = await response.json();
-  return formatResponse(JSON.stringify(data), format);
+    WEB_API_RETRY_CONFIG
+  );
 }
 
 export const toolDefinition: ToolDefinition = {

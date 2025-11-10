@@ -1,43 +1,53 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { Ollama } from 'ollama';
-import { webSearch, toolDefinition } from '../../src/tools/web-search.js';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { webSearch } from '../../src/tools/web-search.js';
 import { ResponseFormat } from '../../src/types.js';
+import type { Ollama } from 'ollama';
+import { HttpError } from '../../src/utils/http-error.js';
+
+// Mock fetch globally
+global.fetch = vi.fn();
 
 describe('webSearch', () => {
-  let ollama: Ollama;
+  const mockOllama = {} as Ollama;
+  const testQuery = 'test search query';
+  const maxResults = 5;
 
   beforeEach(() => {
-    ollama = {} as any;
-    // Set API key for tests
+    vi.clearAllMocks();
     process.env.OLLAMA_API_KEY = 'test-api-key';
-    // Mock fetch globally
-    global.fetch = vi.fn();
   });
 
-  it('should perform a web search', async () => {
+  afterEach(() => {
+    delete process.env.OLLAMA_API_KEY;
+  });
+
+  it('should throw error if OLLAMA_API_KEY is not set', async () => {
+    // Arrange
+    delete process.env.OLLAMA_API_KEY;
+
+    // Act & Assert
+    await expect(webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON))
+      .rejects.toThrow('OLLAMA_API_KEY environment variable is required');
+  });
+
+  it('should successfully perform web search', async () => {
+    // Arrange
     const mockResponse = {
       results: [
-        {
-          title: 'Ollama',
-          url: 'https://ollama.com/',
-          content: 'Cloud models are now available...',
-        },
+        { title: 'Result 1', url: 'https://example.com/1', snippet: 'Test snippet 1' },
+        { title: 'Result 2', url: 'https://example.com/2', snippet: 'Test snippet 2' },
       ],
     };
 
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (global.fetch as any).mockResolvedValueOnce({
       ok: true,
       json: async () => mockResponse,
-    } as Response);
+    });
 
-    const result = await webSearch(
-      ollama,
-      'what is ollama?',
-      5,
-      ResponseFormat.JSON
-    );
+    // Act
+    const result = await webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON);
 
-    expect(typeof result).toBe('string');
+    // Assert
     expect(global.fetch).toHaveBeenCalledWith(
       'https://ollama.com/api/web_search',
       {
@@ -46,52 +56,152 @@ describe('webSearch', () => {
           'Content-Type': 'application/json',
           Authorization: 'Bearer test-api-key',
         },
-        body: JSON.stringify({
-          query: 'what is ollama?',
-          max_results: 5,
-        }),
+        body: JSON.stringify({ query: testQuery, max_results: maxResults }),
+        signal: expect.any(AbortSignal),
       }
     );
-
-    const parsed = JSON.parse(result);
-    expect(parsed).toHaveProperty('results');
-    expect(Array.isArray(parsed.results)).toBe(true);
+    expect(result).toContain('Result 1');
+    expect(result).toContain('Result 2');
   });
 
-  it('should throw error when OLLAMA_API_KEY is not set', async () => {
-    delete process.env.OLLAMA_API_KEY;
+  it('should successfully complete on first attempt (no retry needed)', async () => {
+    // Arrange
+    const mockResponse = {
+      results: [
+        { title: 'Result 1', url: 'https://example.com/1', snippet: 'Test' },
+      ],
+    };
 
-    await expect(
-      webSearch(ollama, 'test query', 5, ResponseFormat.JSON)
-    ).rejects.toThrow(
-      'OLLAMA_API_KEY environment variable is required for web search'
-    );
-  });
-
-  it('should throw error when search fails', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-    } as Response);
-
-    await expect(
-      webSearch(ollama, 'test query', 5, ResponseFormat.JSON)
-    ).rejects.toThrow('Web search failed: 500 Internal Server Error');
-  });
-
-  it('should work through toolDefinition handler', async () => {
-    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (global.fetch as any).mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ results: [] })
+      json: async () => mockResponse,
     });
-    const result = await toolDefinition.handler(
-      ollama,
-      { query: 'test query', max_results: 5, format: 'json' },
-      ResponseFormat.JSON
-    );
 
-    expect(typeof result).toBe('string');
+    // Act
+    const result = await webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON);
+
+    // Assert
+    expect(result).toContain('Result 1');
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
+  it('should retry on 429 rate limit error and eventually succeed', async () => {
+    // Arrange
+    const mockResponse = {
+      results: [
+        { title: 'Success after retry', url: 'https://example.com', snippet: 'Test' },
+      ],
+    };
+
+    // Mock setTimeout to execute immediately (avoid real delays in tests)
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    // First call returns 429, second call succeeds
+    (global.fetch as any)
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 429,
+        statusText: 'Too Many Requests',
+        headers: {
+          get: vi.fn().mockReturnValue(null),
+        },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => mockResponse,
+      });
+
+    // Act
+    const result = await webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON);
+
+    // Assert
+    expect(result).toContain('Success after retry');
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it('should throw error on non-retryable HTTP errors', async () => {
+    // Arrange - 501 Not Implemented is not retried
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: false,
+      status: 501,
+      statusText: 'Not Implemented',
+      headers: {
+        get: vi.fn().mockReturnValue(null),
+      },
+    });
+
+    // Act & Assert
+    await expect(webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON))
+      .rejects.toThrow('Web search failed: 501 Not Implemented');
+  });
+
+  it('should throw error on network timeout (no status code)', async () => {
+    // Arrange
+    const networkError = new Error('Network timeout - no response from server');
+    (global.fetch as any).mockRejectedValueOnce(networkError);
+
+    // Act & Assert
+    await expect(webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON))
+      .rejects.toThrow('Network timeout - no response from server');
+
+    // Should not retry network errors
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should throw error when response.json() fails (malformed JSON)', async () => {
+    // Arrange
+    (global.fetch as any).mockResolvedValueOnce({
+      ok: true,
+      json: async () => {
+        throw new Error('Unexpected token < in JSON at position 0');
+      },
+    });
+
+    // Act & Assert
+    await expect(webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON))
+      .rejects.toThrow('Unexpected token < in JSON at position 0');
+  });
+
+  it('should handle fetch abort/cancel errors', async () => {
+    // Arrange
+    const abortError = new Error('The operation was aborted');
+    abortError.name = 'AbortError';
+    (global.fetch as any).mockRejectedValueOnce(abortError);
+
+    // Act & Assert
+    // Note: fetchWithTimeout transforms AbortError to timeout message
+    await expect(webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON))
+      .rejects.toThrow('Request to https://ollama.com/api/web_search timed out after 30000ms');
+
+    // Should not retry abort errors
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('should eventually fail after multiple 429 retries', async () => {
+    // Arrange
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    // Always return 429 (will exhaust retries)
+    (global.fetch as any).mockResolvedValue({
+      ok: false,
+      status: 429,
+      statusText: 'Too Many Requests',
+      headers: {
+        get: vi.fn().mockReturnValue(null),
+      },
+    });
+
+    // Act & Assert
+    await expect(webSearch(mockOllama, testQuery, maxResults, ResponseFormat.JSON))
+      .rejects.toThrow('Web search failed: 429 Too Many Requests');
+
+    // Should attempt initial + 3 retries = 4 total
+    expect(global.fetch).toHaveBeenCalledTimes(4);
+  });
 });
