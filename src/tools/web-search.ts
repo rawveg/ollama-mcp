@@ -5,6 +5,7 @@ import type { ToolDefinition } from '../autoloader.js';
 import { WebSearchInputSchema } from '../schemas.js';
 import { retryWithBackoff, fetchWithTimeout } from '../utils/retry.js';
 import { HttpError } from '../utils/http-error.js';
+import { WEB_API_RETRY_CONFIG, WEB_API_TIMEOUT } from '../utils/retry-config.js';
 
 /**
  * Perform a web search using Ollama's web search API
@@ -25,17 +26,21 @@ export async function webSearch(
 
   return retryWithBackoff(
     async () => {
-      const response = await fetchWithTimeout('https://ollama.com/api/web_search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetchWithTimeout(
+        'https://ollama.com/api/web_search',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            query,
+            max_results: maxResults,
+          }),
         },
-        body: JSON.stringify({
-          query,
-          max_results: maxResults,
-        }),
-      }, 30000); // 30 second timeout
+        WEB_API_TIMEOUT
+      );
 
       if (!response.ok) {
         const retryAfter = response.headers.get('retry-after') ?? undefined;
@@ -49,7 +54,7 @@ export async function webSearch(
       const data = await response.json();
       return formatResponse(JSON.stringify(data), format);
     },
-    { maxRetries: 3, initialDelay: 1000 } // maxDelay defaults to 10000ms
+    WEB_API_RETRY_CONFIG
   );
 }
 

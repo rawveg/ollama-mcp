@@ -238,17 +238,21 @@ When `Retry-After` is not provided or invalid:
 
 ### Error Handling
 
-**Retried Errors:**
+**Retried Errors (transient failures):**
 - HTTP 429 (Too Many Requests) - rate limiting
+- HTTP 500 (Internal Server Error) - transient server issues
+- HTTP 502 (Bad Gateway) - gateway/proxy received invalid response
+- HTTP 503 (Service Unavailable) - server temporarily unable to handle request
+- HTTP 504 (Gateway Timeout) - gateway/proxy did not receive timely response
 
-**Non-Retried Errors:**
+**Non-Retried Errors (permanent failures):**
 - Request timeouts (30 second limit exceeded)
 - Network timeouts (no status code)
 - Abort/cancel errors
-- HTTP 4xx errors (except 429)
-- HTTP 5xx errors
+- HTTP 4xx errors (except 429) - client errors requiring changes
+- Other HTTP 5xx errors (501, 505, 506, 508, etc.) - configuration/implementation issues
 
-The retry mechanism ensures robust handling of temporary API issues while respecting server-provided retry guidance and preventing excessive request rates. Individual requests timeout after 30 seconds to prevent indefinitely hung connections.
+The retry mechanism ensures robust handling of temporary API issues while respecting server-provided retry guidance and preventing excessive request rates. Transient 5xx errors (500, 502, 503, 504) are safe to retry for the idempotent POST operations used by `ollama_web_search` and `ollama_web_fetch`. Individual requests timeout after 30 seconds to prevent indefinitely hung connections.
 
 ## 🎯 Usage Examples
 

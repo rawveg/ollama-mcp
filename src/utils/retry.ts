@@ -22,10 +22,26 @@ function sleep(ms: number): Promise<void> {
 }
 
 /**
- * Check if an error is a rate limit error (429)
+ * Check if an error is retryable based on HTTP status code
+ *
+ * Retryable errors include:
+ * - 429 (Too Many Requests) - Rate limiting
+ * - 500 (Internal Server Error) - Transient server issues
+ * - 502 (Bad Gateway) - Gateway/proxy received invalid response
+ * - 503 (Service Unavailable) - Server temporarily unable to handle request
+ * - 504 (Gateway Timeout) - Gateway/proxy did not receive timely response
+ *
+ * These errors are typically transient and safe to retry for idempotent operations.
+ * Other 5xx errors (501, 505, 506, 508, etc.) indicate permanent configuration
+ * or implementation issues and should not be retried.
  */
-function isRateLimitError(error: unknown): boolean {
-  return error instanceof HttpError && error.status === 429;
+function isRetryableError(error: unknown): boolean {
+  if (!(error instanceof HttpError)) {
+    return false;
+  }
+
+  const retryableStatuses = [429, 500, 502, 503, 504];
+  return retryableStatuses.includes(error.status);
 }
 
 /**
@@ -52,7 +68,7 @@ export async function fetchWithTimeout(
     return response;
   } catch (error: any) {
     if (error.name === 'AbortError') {
-      throw new Error(`Request timeout after ${timeout}ms`);
+      throw new Error(`Request to ${url} timed out after ${timeout}ms`);
     }
     throw error;
   } finally {
@@ -112,9 +128,9 @@ export async function retryWithBackoff<T>(
     try {
       return await fn();
     } catch (error) {
-      // Only retry on 429 rate limit errors
+      // Only retry on transient errors (429, 500, 502, 503, 504)
       // Throw immediately for any other error type
-      if (!isRateLimitError(error)) {
+      if (!isRetryableError(error)) {
         throw error;
       }
 

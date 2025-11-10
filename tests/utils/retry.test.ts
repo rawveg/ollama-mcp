@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { retryWithBackoff, fetchWithTimeout } from './retry.js';
-import { HttpError } from './http-error.js';
+import { retryWithBackoff, fetchWithTimeout } from '../../src/utils/retry.js';
+import { HttpError } from '../../src/utils/http-error.js';
 
 // Type-safe mock for setTimeout that executes callbacks immediately
 type TimeoutCallback = (...args: any[]) => void;
@@ -67,14 +67,14 @@ describe('retryWithBackoff', () => {
     expect(mockFn).toHaveBeenCalledTimes(3); // Initial + 2 retries
   });
 
-  it('should not retry on non-429 errors', async () => {
+  it('should not retry on non-retryable errors (e.g., 400, 404)', async () => {
     // Arrange
-    const error500 = new HttpError('Internal server error', 500);
+    const error404 = new HttpError('Not Found', 404);
 
-    const mockFn = vi.fn().mockRejectedValue(error500);
+    const mockFn = vi.fn().mockRejectedValue(error404);
 
     // Act & Assert
-    await expect(retryWithBackoff(mockFn)).rejects.toThrow('Internal server error');
+    await expect(retryWithBackoff(mockFn)).rejects.toThrow('Not Found');
     expect(mockFn).toHaveBeenCalledTimes(1);
   });
 
@@ -508,6 +508,112 @@ describe('retryWithBackoff', () => {
     expect(delays[0]).toBeCloseTo(500, 0); // Should be ~500ms, not ~1500ms (additive)
     expect(delays[1]).toBeCloseTo(1000, 0); // Should be ~1000ms, not ~3000ms (additive)
   });
+
+  it('should retry on 500 Internal Server Error', async () => {
+    // Arrange
+    const error500 = new HttpError('Internal Server Error', 500);
+    const mockResponse = { ok: true };
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error500)
+      .mockResolvedValueOnce(mockResponse);
+
+    // Act
+    const result = await retryWithBackoff(mockFn, { maxRetries: 2 });
+
+    // Assert
+    expect(result).toBe(mockResponse);
+    expect(mockFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should retry on 502 Bad Gateway', async () => {
+    // Arrange
+    const error502 = new HttpError('Bad Gateway', 502);
+    const mockResponse = { ok: true };
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error502)
+      .mockResolvedValueOnce(mockResponse);
+
+    // Act
+    const result = await retryWithBackoff(mockFn, { maxRetries: 2 });
+
+    // Assert
+    expect(result).toBe(mockResponse);
+    expect(mockFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should retry on 503 Service Unavailable', async () => {
+    // Arrange
+    const error503 = new HttpError('Service Unavailable', 503);
+    const mockResponse = { ok: true };
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error503)
+      .mockResolvedValueOnce(mockResponse);
+
+    // Act
+    const result = await retryWithBackoff(mockFn, { maxRetries: 2 });
+
+    // Assert
+    expect(result).toBe(mockResponse);
+    expect(mockFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should retry on 504 Gateway Timeout', async () => {
+    // Arrange
+    const error504 = new HttpError('Gateway Timeout', 504);
+    const mockResponse = { ok: true };
+
+    vi.spyOn(global, 'setTimeout').mockImplementation(((callback: any) => {
+      Promise.resolve().then(() => callback());
+      return 0 as any;
+    }) as any);
+
+    const mockFn = vi
+      .fn()
+      .mockRejectedValueOnce(error504)
+      .mockResolvedValueOnce(mockResponse);
+
+    // Act
+    const result = await retryWithBackoff(mockFn, { maxRetries: 2 });
+
+    // Assert
+    expect(result).toBe(mockResponse);
+    expect(mockFn).toHaveBeenCalledTimes(2);
+  });
+
+  it('should not retry on 501 Not Implemented (non-retryable 5xx)', async () => {
+    // Arrange
+    const error501 = new HttpError('Not Implemented', 501);
+
+    const mockFn = vi.fn().mockRejectedValue(error501);
+
+    // Act & Assert
+    await expect(retryWithBackoff(mockFn, { maxRetries: 2 }))
+      .rejects.toThrow('Not Implemented');
+
+    // Should not retry - only 1 attempt
+    expect(mockFn).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('fetchWithTimeout', () => {
@@ -551,7 +657,7 @@ describe('fetchWithTimeout', () => {
 
     // Act & Assert
     await expect(fetchWithTimeout('https://example.com', undefined, 50))
-      .rejects.toThrow('Request timeout after 50ms');
+      .rejects.toThrow('Request to https://example.com timed out after 50ms');
   });
 
   it('should pass through non-abort errors', async () => {

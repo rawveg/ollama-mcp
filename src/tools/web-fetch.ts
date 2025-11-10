@@ -5,6 +5,7 @@ import type { ToolDefinition } from '../autoloader.js';
 import { WebFetchInputSchema } from '../schemas.js';
 import { retryWithBackoff, fetchWithTimeout } from '../utils/retry.js';
 import { HttpError } from '../utils/http-error.js';
+import { WEB_API_RETRY_CONFIG, WEB_API_TIMEOUT } from '../utils/retry-config.js';
 
 /**
  * Fetch a web page using Ollama's web fetch API
@@ -24,16 +25,20 @@ export async function webFetch(
 
   return retryWithBackoff(
     async () => {
-      const response = await fetchWithTimeout('https://ollama.com/api/web_fetch', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+      const response = await fetchWithTimeout(
+        'https://ollama.com/api/web_fetch',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            url,
+          }),
         },
-        body: JSON.stringify({
-          url,
-        }),
-      }, 30000); // 30 second timeout
+        WEB_API_TIMEOUT
+      );
 
       if (!response.ok) {
         const retryAfter = response.headers.get('retry-after') ?? undefined;
@@ -47,7 +52,7 @@ export async function webFetch(
       const data = await response.json();
       return formatResponse(JSON.stringify(data), format);
     },
-    { maxRetries: 3, initialDelay: 1000 } // maxDelay defaults to 10000ms
+    WEB_API_RETRY_CONFIG
   );
 }
 

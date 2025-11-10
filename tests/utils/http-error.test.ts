@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { HttpError } from './http-error.js';
+import { HttpError } from '../../src/utils/http-error.js';
 
 describe('HttpError', () => {
   it('should create an HttpError with message and status', () => {
