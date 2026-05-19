@@ -16,6 +16,9 @@ import { ResponseFormat } from './types.js';
  */
 export function createServer(ollamaInstance?: Ollama): Server {
   // Initialize Ollama client
+  // Use explicit IPv4 (127.0.0.1) instead of "localhost" to avoid Node.js 17+
+  // Happy Eyeballs behavior, which can hang when resolving IPv6 for a local
+  // Ollama instance that only listens on IPv4.
   const ollamaConfig: {
     host: string;
     headers?: Record<string, string>;
