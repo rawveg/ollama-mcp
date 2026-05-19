@@ -25,33 +25,55 @@ export interface ToolDefinition {
   ) => Promise<string>;
 }
 
+let cachedToolsPromise: Promise<ToolDefinition[]> | null = null;
+
+/**
+ * Reset the tool cache (primarily for testing)
+ */
+export function resetToolCache(): void {
+  cachedToolsPromise = null;
+}
+
 /**
  * Discover and load all tools from the tools directory
  */
 export async function discoverTools(): Promise<ToolDefinition[]> {
-  const toolsDir = join(__dirname, 'tools');
-  const files = await readdir(toolsDir);
-
-  // Filter for .js files (production) or .ts files (development)
-  // Exclude test files and declaration files
-  const toolFiles = files.filter(
-    (file) =>
-      (file.endsWith('.js') || file.endsWith('.ts')) &&
-      !file.includes('.test.') &&
-      !file.endsWith('.d.ts')
-  );
-
-  const tools: ToolDefinition[] = [];
-
-  for (const file of toolFiles) {
-    const toolPath = join(toolsDir, file);
-    const module = await import(toolPath);
-
-    // Check if module exports tool metadata
-    if (module.toolDefinition) {
-      tools.push(module.toolDefinition);
-    }
+  if (cachedToolsPromise) {
+    return cachedToolsPromise;
   }
 
-  return tools;
+  cachedToolsPromise = (async () => {
+    try {
+      const toolsDir = join(__dirname, 'tools');
+      const files = await readdir(toolsDir);
+
+      // Filter for .js files (production) or .ts files (development)
+      // Exclude test files and declaration files
+      const toolFiles = files.filter(
+        (file) =>
+          (file.endsWith('.js') || file.endsWith('.ts')) &&
+          !file.includes('.test.') &&
+          !file.endsWith('.d.ts')
+      );
+
+      const tools: ToolDefinition[] = [];
+
+      for (const file of toolFiles) {
+        const toolPath = join(toolsDir, file);
+        const module = await import(toolPath);
+
+        // Check if module exports tool metadata
+        if (module.toolDefinition) {
+          tools.push(module.toolDefinition);
+        }
+      }
+
+      return Object.freeze(tools) as ToolDefinition[];
+    } catch (error) {
+      cachedToolsPromise = null;
+      throw error;
+    }
+  })();
+
+  return cachedToolsPromise;
 }

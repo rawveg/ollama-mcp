@@ -7,27 +7,29 @@ import { Ollama } from 'ollama';
 // Mock the Ollama SDK
 vi.mock('ollama', () => {
   return {
-    Ollama: vi.fn().mockImplementation(() => ({
-      list: vi.fn().mockResolvedValue({
-        models: [
-          {
-            name: 'llama2:latest',
-            size: 3825819519,
-            digest: 'abc123',
-            modified_at: '2024-01-01T00:00:00Z',
-          },
-        ],
-      }),
-      ps: vi.fn().mockResolvedValue({
-        models: [
-          {
-            name: 'llama2:latest',
-            size: 3825819519,
-            size_vram: 3825819519,
-          },
-        ],
-      }),
-    })),
+    Ollama: vi.fn().mockImplementation(function () {
+      return {
+        list: vi.fn().mockResolvedValue({
+          models: [
+            {
+              name: 'llama2:latest',
+              size: 3825819519,
+              digest: 'abc123',
+              modified_at: '2024-01-01T00:00:00Z',
+            },
+          ],
+        }),
+        ps: vi.fn().mockResolvedValue({
+          models: [
+            {
+              name: 'llama2:latest',
+              size: 3825819519,
+              size_vram: 3825819519,
+            },
+          ],
+        }),
+      };
+    }),
   };
 });
 
@@ -45,7 +47,7 @@ describe('MCP Server Integration', () => {
     const { createServer } = await import('../../src/server.js');
 
     // Create a mock Ollama instance
-    const mockOllama = new Ollama({ host: 'http://localhost:11434' });
+    const mockOllama = new Ollama({ host: 'http://127.0.0.1:11434' });
     server = createServer(mockOllama);
 
     // Create client

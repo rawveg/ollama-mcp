@@ -136,7 +136,7 @@ Add to your Cline MCP settings (`cline_mcp_settings.json`):
       "command": "npx",
       "args": ["-y", "ollama-mcp"],
       "env": {
-        "OLLAMA_HOST": "http://localhost:11434"
+        "OLLAMA_HOST": "http://127.0.0.1:11434"
       }
     }
   }
