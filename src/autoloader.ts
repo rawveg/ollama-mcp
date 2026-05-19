@@ -25,10 +25,16 @@ export interface ToolDefinition {
   ) => Promise<string>;
 }
 
+let cachedTools: ToolDefinition[] | null = null;
+
 /**
  * Discover and load all tools from the tools directory
  */
 export async function discoverTools(): Promise<ToolDefinition[]> {
+  if (cachedTools) {
+    return cachedTools;
+  }
+
   const toolsDir = join(__dirname, 'tools');
   const files = await readdir(toolsDir);
 
@@ -53,5 +59,6 @@ export async function discoverTools(): Promise<ToolDefinition[]> {
     }
   }
 
+  cachedTools = tools;
   return tools;
 }
