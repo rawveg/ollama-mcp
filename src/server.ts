@@ -30,8 +30,6 @@ export function createServer(ollamaInstance?: Ollama): Server {
     };
   }
 
-  const ollama = ollamaInstance || new Ollama(ollamaConfig);
-
   // Create MCP server
   const server = new Server(
     {
@@ -59,12 +57,37 @@ export function createServer(ollamaInstance?: Ollama): Server {
   });
 
   // Register tool call handler
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     try {
+      if (extra.signal.aborted) {
+        throw new Error('Request cancelled');
+      }
+
       const { name, arguments: args } = request.params;
+
+      // Create a scoped Ollama client to support request cancellation.
+      // If a custom instance was provided, we use it directly (cancellation won't be injected).
+      // Otherwise, we create a new instance with a custom fetch that injects the AbortSignal.
+      const scopedOllama = ollamaInstance || new Ollama({
+        ...ollamaConfig,
+        fetch: (input, init) => {
+          // Combine signals if the SDK already supplied one
+          const sig = init?.signal
+            ? AbortSignal.any([init.signal, extra.signal])
+            : extra.signal;
+          return fetch(input, {
+            ...init,
+            signal: sig,
+          });
+        },
+      });
 
       // Discover all tools
       const tools = await discoverTools();
+
+      if (extra.signal.aborted) {
+        throw new Error('Request cancelled');
+      }
 
       // Find the matching tool
       const tool = tools.find((t) => t.name === name);
@@ -80,7 +103,7 @@ export function createServer(ollamaInstance?: Ollama): Server {
 
       // Call the tool handler
       const result = await tool.handler(
-        ollama,
+        scopedOllama,
         args as Record<string, unknown>,
         format
       );
@@ -105,8 +128,13 @@ export function createServer(ollamaInstance?: Ollama): Server {
         ],
       };
     } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
+      const isAbortError = error instanceof Error && 
+        (error.name === 'AbortError' || error.message === 'Request cancelled');
+        
+      const errorMessage = isAbortError 
+        ? 'Request cancelled' 
+        : (error instanceof Error ? error.message : String(error));
+        
       return {
         content: [
           {
