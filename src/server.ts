@@ -19,6 +19,7 @@ export function createServer(ollamaInstance?: Ollama): Server {
   const ollamaConfig: {
     host: string;
     headers?: Record<string, string>;
+    fetch?: typeof globalThis.fetch;
   } = {
     host: process.env.OLLAMA_HOST || 'http://127.0.0.1:11434',
   };
@@ -59,7 +60,7 @@ export function createServer(ollamaInstance?: Ollama): Server {
   });
 
   // Register tool call handler
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     try {
       const { name, arguments: args } = request.params;
 
@@ -78,9 +79,23 @@ export function createServer(ollamaInstance?: Ollama): Server {
       const format =
         formatArg === 'markdown' ? ResponseFormat.MARKDOWN : ResponseFormat.JSON;
 
+      // If the MCP client provided a cancellation signal, create a scoped Ollama
+      // instance with a fetch wrapper that forwards the signal. This ensures the
+      // underlying HTTP request to Ollama is aborted when the client cancels,
+      // freeing GPU resources immediately instead of letting inference run to completion.
+      const signal = extra?.signal;
+      const requestOllama =
+        signal && !ollamaInstance
+          ? new Ollama({
+              ...ollamaConfig,
+              fetch: (input, init) =>
+                globalThis.fetch(input as Parameters<typeof globalThis.fetch>[0], { ...init, signal }),
+            })
+          : ollama;
+
       // Call the tool handler
       const result = await tool.handler(
-        ollama,
+        requestOllama,
         args as Record<string, unknown>,
         format
       );
