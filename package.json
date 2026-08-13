@@ -45,8 +45,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.5",
-    "@vitest/coverage-v8": "^2.1.9",
+    "@vitest/coverage-v8": "^4.1.6",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.9"
+    "vitest": "^4.1.6"
   }
 }

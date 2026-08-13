@@ -7,8 +7,8 @@ import { Ollama } from 'ollama';
 // Mock the Ollama SDK
 vi.mock('ollama', () => {
   return {
-    Ollama: vi.fn().mockImplementation(() => ({
-      list: vi.fn().mockResolvedValue({
+    Ollama: class {
+      list = vi.fn().mockResolvedValue({
         models: [
           {
             name: 'llama2:latest',
@@ -17,8 +17,8 @@ vi.mock('ollama', () => {
             modified_at: '2024-01-01T00:00:00Z',
           },
         ],
-      }),
-      ps: vi.fn().mockResolvedValue({
+      });
+      ps = vi.fn().mockResolvedValue({
         models: [
           {
             name: 'llama2:latest',
@@ -26,8 +26,8 @@ vi.mock('ollama', () => {
             size_vram: 3825819519,
           },
         ],
-      }),
-    })),
+      });
+    },
   };
 });
 
