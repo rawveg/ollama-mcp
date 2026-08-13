@@ -1,6 +1,6 @@
 import { readdir } from 'fs/promises';
 import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import type { Ollama } from 'ollama';
 import { ResponseFormat } from './types.js';
 
@@ -45,7 +45,10 @@ export async function discoverTools(): Promise<ToolDefinition[]> {
 
   for (const file of toolFiles) {
     const toolPath = join(toolsDir, file);
-    const module = await import(toolPath);
+    // Convert to a file:// URL so dynamic import works on Windows, where an
+    // absolute path like "C:\..." is otherwise rejected by the ESM loader
+    // ("Only URLs with a scheme in: file, data, and node are supported").
+    const module = await import(pathToFileURL(toolPath).href);
 
     // Check if module exports tool metadata
     if (module.toolDefinition) {
